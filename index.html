@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Interaktif Kualitas Air Laut</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .quiz-option.selected {
+            background-color: #3b82f6; /* bg-blue-500 */
+            color: white;
+            border-color: #2563eb; /* border-blue-600 */
+        }
+        #explanationModal, #nav-panel {
+            transition: opacity 0.3s ease;
+        }
+        .nav-btn {
+            border: 1px solid #d1d5db;
+            background-color: #f9fafb;
+        }
+        .nav-btn.answered {
+            background-color: #dbeafe; /* bg-blue-100 */
+            border-color: #93c5fd; /* border-blue-300 */
+            color: #1e40af; /* text-blue-800 */
+        }
+        .nav-btn.current {
+            background-color: #3b82f6;
+            border-color: #2563eb;
+            color: white;
+            font-weight: bold;
+        }
+        .topic-button {
+            transition: all 0.2s ease-in-out;
+        }
+        .topic-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+    <div id="quiz-container" class="w-full max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+        <!-- Layar Awal (Pemilihan Topik) -->
+        <div id="start-screen">
+            <h1 class="text-3xl sm:text-4xl font-bold text-center text-blue-600 mb-4">Kuis Kualitas Air Laut</h1>
+            <p class="text-center text-gray-600 mb-8">Pilih topik untuk memulai kuis.</p>
+            <div id="topic-selection" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Tombol topik akan di-generate oleh JavaScript -->
+            </div>
+        </div>
+
+        <!-- Layar Kuis -->
+        <div id="quiz-screen" class="hidden">
+            <div class="flex justify-between items-start mb-2">
+                 <div>
+                    <h2 id="quiz-topic-title" class="text-2xl font-bold text-blue-600"></h2>
+                    <button id="nav-toggle-btn" onclick="toggleNavPanel()" class="text-sm text-blue-600 hover:underline mt-1">
+                        Navigasi Soal
+                    </button>
+                </div>
+                <span id="question-counter" class="text-lg font-semibold text-gray-500 text-right"></span>
+            </div>
+            
+             <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300"></div>
+            </div>
+            
+            <div id="question-card" class="bg-blue-50 border-2 border-blue-200 p-6 rounded-xl min-h-[150px] flex items-center justify-center mb-6">
+                <p id="question-text" class="text-center text-lg sm:text-xl"></p>
+            </div>
+
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+            <div id="essay-container" class="hidden mb-6">
+                 <textarea id="essay-answer" class="w-full p-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" rows="6" placeholder="Ketik jawaban esai Anda di sini..."></textarea>
+            </div>
+
+            <div class="flex justify-between items-center mt-8">
+                 <button id="prev-btn" onclick="prevQuestion()" class="bg-gray-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-600 transition duration-300">Sebelumnya</button>
+                 <button onclick="showResults()" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition duration-300">Lihat Hasil</button>
+                 <button id="next-btn" onclick="nextQuestion()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition duration-300">Selanjutnya</button>
+            </div>
+        </div>
+
+        <!-- Layar Hasil -->
+        <div id="result-screen" class="hidden text-center">
+            <h2 class="text-3xl font-bold text-blue-600 mb-4">Hasil Kuis</h2>
+            <div id="topic-scores-breakdown" class="mb-8 text-left border rounded-lg p-4">
+                <!-- Rincian skor per topik akan ditampilkan di sini -->
+            </div>
+            <p class="text-lg mb-6">Tinjau jawaban Anda di bawah ini:</p>
+            <div id="answers-review" class="text-left max-h-[40vh] overflow-y-auto p-4 bg-gray-50 rounded-lg border"></div>
+            <div class="mt-8 flex justify-center space-x-4">
+                <button onclick="restartQuiz()" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition duration-300">
+                    Kembali ke Awal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Navigasi -->
+    <div id="nav-panel" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden z-40" onclick="toggleNavPanel()">
+        <div class="bg-white rounded-2xl p-6 max-w-3xl w-full shadow-2xl" onclick="event.stopPropagation()">
+            <h3 class="text-xl font-bold mb-4">Lompat ke Soal</h3>
+            <div id="nav-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-2 max-h-[60vh] overflow-y-auto p-2"></div>
+            <div class="mt-6 text-right">
+                <button onclick="toggleNavPanel()" class="bg-gray-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-600">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Penjelasan -->
+    <div id="explanationModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden z-50" onclick="closeModal()">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl transform transition-transform duration-300 scale-95" onclick="event.stopPropagation()">
+            <h3 class="text-2xl font-bold text-blue-600 mb-4" id="modal-question"></h3>
+            <p class="text-lg mb-2 font-semibold">Jawaban yang Benar:</p>
+            <p class="text-green-600 bg-green-100 p-3 rounded-lg mb-4" id="modal-correct-answer"></p>
+            <p class="text-lg mb-2 font-semibold">Penjelasan:</p>
+            <p id="modal-explanation" class="text-gray-700"></p>
+            <div class="mt-6 text-right">
+                <button onclick="closeModal()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data Kuis (Dikelompokkan per Topik) ---
+        const quizDataCategorized = {
+            "Pendahuluan & Karakteristik Air": {
+                mcq: [
+                    { question: "Menurut WHO, perairan dianggap tercemar jika...", options: ["Warnanya berubah menjadi keruh", "Komposisinya berubah akibat aktivitas manusia sehingga menjadi kurang sesuai untuk fungsinya", "Mengandung bakteri E. coli", "Suhunya meningkat 2 derajat Celsius"], answer: "Komposisinya berubah akibat aktivitas manusia sehingga menjadi kurang sesuai untuk fungsinya", explanation: "Definisi polusi oleh WHO menekankan pada perubahan komposisi atau kondisi akibat aktivitas manusia yang mengurangi kesesuaian air untuk fungsi alaminya." },
+                    { question: "Batas atau kadar maksimum suatu unsur pencemar yang dapat ditoleransi dalam sumber air tertentu sesuai peruntukannya disebut...", options: ["Beban Pencemar", "Daya Tampung Beban Pencemar", "Baku Mutu Air", "Kualitas Air"], answer: "Baku Mutu Air", explanation: "Baku mutu air adalah standar yang ditetapkan untuk menjaga kualitas air agar tetap sesuai dengan fungsi yang telah ditentukan." },
+                    { question: "Molekul air bersifat polar. Hal ini disebabkan oleh...", options: ["Adanya ikatan hidrogen", "Distribusi muatan yang tidak merata antara atom oksigen dan hidrogen", "Air dapat berada dalam tiga wujud (padat, cair, gas)", "Kemampuannya melarutkan garam"], answer: "Distribusi muatan yang tidak merata antara atom oksigen dan hidrogen", explanation: "Atom oksigen yang lebih elektronegatif menarik elektron lebih kuat, menciptakan muatan parsial negatif pada sisi oksigen dan muatan parsial positif pada sisi hidrogen, sehingga molekulnya menjadi polar." },
+                    { question: "Gaya tarik-menarik antar molekul air yang menyebabkan fenomena tegangan permukaan disebut...", options: ["Ikatan kovalen", "Ikatan ionik", "Ikatan hidrogen", "Gaya Van der Waals"], answer: "Ikatan hidrogen", explanation: "Ikatan hidrogen adalah gaya tarik antar molekul yang relatif kuat antara sisi positif (H) dari satu molekul air dengan sisi negatif (O) dari molekul air lainnya." },
+                    { question: "Air murni memiliki densitas maksimum pada suhu...", options: ["0°C", "3.98°C", "100°C", "-1.9°C"], answer: "3.98°C", explanation: "Saat air murni didinginkan, densitasnya meningkat hingga mencapai maksimum pada 3.98°C. Di bawah suhu ini, molekul mulai membentuk struktur kristal (es) yang kurang padat, sehingga densitasnya menurun lagi." },
+                    { question: "Mengapa es mengapung di atas air?", options: ["Es lebih asin daripada air", "Struktur kristal heksagonal es memiliki lebih banyak ruang kosong sehingga kurang padat", "Es memiliki suhu yang lebih rendah", "Tekanan di bawah permukaan air lebih tinggi"], answer: "Struktur kristal heksagonal es memiliki lebih banyak ruang kosong sehingga kurang padat", explanation: "Ketika air membeku, ikatan hidrogen menahan molekul dalam formasi kristal yang kaku dan berjarak, membuatnya kurang padat (sekitar 9% lebih besar volumenya) daripada air cair." },
+                    { question: "Kemampuan air untuk melarutkan banyak zat, terutama garam, membuatnya dijuluki sebagai...", options: ["Pelarut universal", "Zat polar", "Penyangga pH", "Zat amfoter"], answer: "Pelarut universal", explanation: "Sifat polar molekul air memungkinkannya untuk mengelilingi dan memisahkan ion-ion dari senyawa ionik seperti NaCl, sehingga melarutkannya dengan efektif." },
+                    { question: "Dua ion yang paling melimpah dalam air laut adalah...", options: ["Natrium (Na+) dan Sulfat (SO₄²⁻)", "Magnesium (Mg²⁺) dan Kalsium (Ca²⁺)", "Klorida (Cl⁻) dan Natrium (Na⁺)", "Kalium (K⁺) dan Bikarbonat (HCO₃⁻)"], answer: "Klorida (Cl⁻) dan Natrium (Na⁺)", explanation: "Klorida (sekitar 55%) dan Natrium (sekitar 30.6%) secara bersama-sama menyusun lebih dari 85% dari total garam terlarut di air laut." },
+                    { question: "Prinsip 'Constant Proportions' menyatakan bahwa...", options: ["Salinitas air laut selalu konstan di seluruh dunia", "Rasio ion-ion utama terlarut di air laut relatif konstan, meskipun salinitas totalnya bervariasi", "Jumlah garam yang masuk ke laut sama dengan jumlah yang keluar", "Suhu dan salinitas memiliki hubungan yang konstan"], answer: "Rasio ion-ion utama terlarut di air laut relatif konstan, meskipun salinitas totalnya bervariasi", explanation: "Prinsip ini sangat penting karena memungkinkan para oseanografer untuk menentukan salinitas total hanya dengan mengukur konsentrasi satu ion utama (biasanya klorida)." },
+                    { question: "Rata-rata waktu yang dihabiskan suatu zat terlarut di lautan sebelum dihilangkan disebut...", options: ["Waktu paruh", "Siklus biogeokimia", "Waktu tinggal (Residence Time)", "Laju pengendapan"], answer: "Waktu tinggal (Residence Time)", explanation: "Waktu tinggal dihitung dengan membagi jumlah total zat di lautan dengan laju masuk atau keluarnya. Ion seperti Klorida memiliki waktu tinggal yang sangat lama, sementara ion reaktif seperti besi memiliki waktu tinggal yang sangat singkat." },
+                    { question: "Lapisan air di mana salinitas berubah secara drastis dengan kedalaman disebut...", options: ["Termoklin", "Piknoklin", "Haloklin", "Lisoklin"], answer: "Haloklin", explanation: "Haloklin adalah lapisan dengan gradien salinitas yang tajam, memisahkan lapisan permukaan dengan lapisan dalam." },
+                    { question: "pH air laut rata-rata adalah sekitar 8.1, yang berarti bersifat...", options: ["Asam kuat", "Asam lemah", "Netral", "Basa lemah"], answer: "Basa lemah", explanation: "Skala pH di bawah 7 adalah asam, 7 adalah netral, dan di atas 7 adalah basa (alkalin). Nilai 8.1 menunjukkan air laut bersifat sedikit basa." },
+                    { question: "Sistem penyangga (buffer) utama yang menjaga pH air laut tetap stabil adalah sistem...", options: ["Silikat", "Fosfat", "Karbonat", "Sulfat"], answer: "Karbonat", explanation: "Sistem penyangga karbonat, yang melibatkan kesetimbangan antara CO₂, asam karbonat, bikarbonat, dan ion karbonat, dapat menyerap kelebihan ion H⁺ atau OH⁻ untuk menstabilkan pH." },
+                    { question: "Kapasitas panas (heat capacity) air yang tinggi berarti...", options: ["Air cepat panas dan cepat dingin", "Air membutuhkan banyak energi untuk menaikkan suhunya, dan melepaskan banyak energi saat mendingin", "Air adalah konduktor panas yang buruk", "Air membeku pada suhu yang sangat rendah"], answer: "Air membutuhkan banyak energi untuk menaikkan suhunya, dan melepaskan banyak energi saat mendingin", explanation: "Kapasitas panas yang tinggi ini memungkinkan lautan menyerap sejumlah besar panas matahari tanpa perubahan suhu yang drastis, sehingga memoderasi iklim global." },
+                    { question: "Proses penguapan (evaporasi) dari permukaan laut akan...", options: ["Menurunkan salinitas dan mendinginkan air permukaan", "Meningkatkan salinitas dan mendinginkan air permukaan", "Meningkatkan salinitas dan memanaskan air permukaan", "Menurunkan salinitas dan memanaskan air permukaan"], answer: "Meningkatkan salinitas dan mendinginkan air permukaan", explanation: "Evaporasi menghilangkan air tawar, sehingga garam tertinggal dan salinitas meningkat. Proses perubahan dari cair ke gas (evaporasi) juga membutuhkan energi panas (panas laten penguapan), yang diambil dari air permukaan, sehingga menyebabkannya mendingin." }
+                ],
+                essay: [
+                     { question: "Jelaskan mengapa air disebut 'pelarut universal' dan berikan contoh bagaimana sifat ini penting bagi kehidupan di laut.", answer: "Air disebut 'pelarut universal' karena sifat polarnya. Molekul air memiliki ujung positif (hidrogen) dan negatif (oksigen) yang memungkinkannya menarik dan mengelilingi ion-ion dari senyawa ionik (seperti garam NaCl), memisahkannya dan melarutkannya. Sifat ini sangat penting bagi kehidupan di laut karena: 1. Memungkinkan nutrien esensial (seperti nitrat, fosfat, silikat) berada dalam bentuk terlarut sehingga dapat diserap oleh fitoplankton. 2. Memungkinkan gas-gas seperti oksigen dan karbon dioksida terlarut dalam air untuk respirasi dan fotosintesis." }
+                ]
+            },
+            "Jenis Polutan & Sumbernya": {
+                mcq: [
+                    { question: "Sumber polusi yang berasal dari satu lokasi yang dapat diidentifikasi, seperti pipa pembuangan pabrik, disebut...", options: ["Sumber tersebar (non-point source)", "Sumber titik (point source)", "Sumber kronis", "Sumber alami"], answer: "Sumber titik (point source)", explanation: "Sumber titik adalah sumber pencemar yang lokasinya spesifik dan mudah diidentifikasi, seperti pipa pembuangan limbah industri atau domestik." },
+                    { question: "Contoh dari sumber polusi tersebar (non-point source) adalah...", options: ["Tumpahan minyak dari tanker", "Pipa pembuangan limbah kota", "Limpasan pertanian (agricultural run-off) yang mengandung pupuk dan pestisida", "Pembuangan air bahang dari PLTU"], answer: "Limpasan pertanian (agricultural run-off) yang mengandung pupuk dan pestisida", explanation: "Sumber tersebar berasal dari area yang luas dan difus, seperti limpasan air hujan dari lahan pertanian, perkotaan, atau area pertambangan, yang sulit untuk dilacak ke satu titik asal." },
+                    { question: "Pencemaran yang terjadi dalam waktu singkat dengan dampak yang intens, seperti tumpahan minyak, diklasifikasikan sebagai polusi...", options: ["Kronis", "Akut/Diskret", "Tersebar", "Biologis"], answer: "Akut/Diskret", explanation: "Polusi diskret atau akut adalah peristiwa pencemaran jangka pendek dengan konsentrasi polutan yang tinggi, di mana dampaknya dapat berkurang seiring waktu." },
+                    { question: "Pencemaran yang berlangsung terus-menerus dalam jangka waktu lama, seperti pembuangan limbah nutrisi secara kontinu, disebut polusi...", options: ["Kronis", "Akut/Diskret", "Titik", "Alami"], answer: "Kronis", explanation: "Polusi kronis adalah paparan polutan dalam konsentrasi rendah hingga sedang yang terjadi secara terus-menerus dalam jangka panjang." },
+                    { question: "Pengayaan perairan oleh nutrien (terutama nitrogen dan fosfor) yang menyebabkan pertumbuhan alga yang berlebihan disebut...", options: ["Bioakumulasi", "Asidifikasi", "Eutrofikasi", "Oksigenasi"], answer: "Eutrofikasi", explanation: "Eutrofikasi adalah proses pengayaan nutrisi yang memicu ledakan populasi alga (algal bloom). Ketika alga ini mati dan diuraikan oleh bakteri, oksigen terlarut di perairan akan terkuras." },
+                    { question: "Massa kental berwarna coklat yang terbentuk dari emulsi air dalam minyak setelah tumpahan minyak di laut disebut...", options: ["Tar ball", "Oil slick", "Chocolate mousse", "Sheen"], answer: "Chocolate mousse", explanation: "'Chocolate mousse' adalah istilah untuk emulsi air-dalam-minyak yang sangat kental dan stabil, yang mempersulit proses pembersihan tumpahan minyak." },
+                    { question: "Fenomena 'red tides' atau pasang merah yang beracun sering kali dipicu oleh...", options: ["Tumpahan minyak", "Eutrofikasi akibat kelebihan nitrogen", "Peningkatan suhu air", "Logam berat"], answer: "Eutrofikasi akibat kelebihan nitrogen", explanation: "Kelebihan nutrisi, terutama nitrogen di lingkungan laut, dapat menyebabkan ledakan pertumbuhan alga mikroskopis tertentu (seringkali dinoflagellata) yang dapat menghasilkan racun." },
+                    { question: "Logam berat seperti merkuri menjadi sangat berbahaya di lingkungan laut karena dapat mengalami proses...", options: ["Biodegradasi", "Biomagnifikasi", "Fotosintesis", "Pelarutan"], answer: "Biomagnifikasi", explanation: "Biomagnifikasi adalah proses di mana konsentrasi toksin (seperti metilmerkuri) meningkat di setiap tingkatan trofik dalam rantai makanan, mencapai konsentrasi tertinggi pada predator puncak." },
+                    { question: "Contoh polutan konservatif yang tidak mudah terurai oleh proses biologis adalah...", options: ["Limbah domestik", "Limbah makanan", "Hidrokarbon terhalogenasi (seperti DDT dan PCB)", "Nutrien (fosfat dan nitrat)"], answer: "Hidrokarbon terhalogenasi (seperti DDT dan PCB)", explanation: "Polutan konservatif adalah zat yang sangat persisten di lingkungan dan tidak mudah diurai, sehingga dapat terakumulasi dalam waktu lama." },
+                    { question: "Polusi termal, yaitu pembuangan air panas ke badan air, biasanya berasal dari...", options: ["Limpasan pertanian", "Tumpahan minyak", "Pembangkit listrik dan industri", "Limbah domestik"], answer: "Pembangkit listrik dan industri", explanation: "Pembangkit listrik (terutama PLTU) dan banyak industri menggunakan air dalam jumlah besar sebagai pendingin dan membuang kembali air yang lebih hangat ke lingkungan." },
+                    { question: "Dampak utama dari polusi termal terhadap kualitas air adalah...", options: ["Peningkatan salinitas", "Penurunan konsentrasi oksigen terlarut", "Peningkatan pH", "Penurunan kekeruhan"], answer: "Penurunan konsentrasi oksigen terlarut", explanation: "Air hangat memiliki kapasitas yang lebih rendah untuk menampung gas terlarut dibandingkan air dingin. Peningkatan suhu juga meningkatkan laju metabolisme organisme air, yang selanjutnya meningkatkan permintaan oksigen." },
+                    { question: "Kasus keracunan merkuri yang terkenal akibat konsumsi ikan dan kerang yang terkontaminasi dari limbah industri terjadi di...", options: ["Teluk Minamata, Jepang", "Chernobyl, Ukraina", "Love Canal, Amerika Serikat", "Bhopal, India"], answer: "Teluk Minamata, Jepang", explanation: "Penyakit Minamata adalah sindrom neurologis parah yang disebabkan oleh keracunan metilmerkuri, pertama kali ditemukan di kota Minamata, Jepang, pada tahun 1956." },
+                    { question: "Polutan sedimen (tanah, lumpur) dapat merusak ekosistem perairan dengan cara...", options: ["Meningkatkan pH air", "Menjadi sumber makanan bagi ikan", "Menutupi habitat dasar dan mengurangi penetrasi cahaya", "Meningkatkan kadar oksigen terlarut"], answer: "Menutupi habitat dasar dan mengurangi penetrasi cahaya", explanation: "Peningkatan kekeruhan akibat sedimen mengurangi cahaya untuk fotosintesis (misalnya bagi lamun dan karang), dan pengendapan sedimen dapat menutupi tempat pemijahan ikan dan habitat organisme bentik." },
+                    { question: "DDT dan PCB termasuk dalam kelompok polutan yang disebut...", options: ["Logam berat", "Polutan organik persisten (POPs)", "Hidrokarbon minyak bumi", "Radioisotop"], answer: "Polutan organik persisten (POPs)", explanation: "POPs adalah senyawa organik yang sangat tahan terhadap degradasi dan dapat terakumulasi di jaringan lemak organisme serta mengalami biomagnifikasi." },
+                    { question: "Sekitar 80% sampah laut (marine litter) berasal dari...", options: ["Aktivitas perkapalan", "Pengeboran minyak lepas pantai", "Sumber-sumber di darat (land-based sources)", "Bencana alam"], answer: "Sumber-sumber di darat (land-based sources)", explanation: "Sebagian besar sampah di laut berasal dari daratan, yang terbawa ke laut melalui sungai, drainase perkotaan, atau tertiup angin dari tempat sampah dan TPA." }
+                ],
+                essay: [
+                     { question: "Jelaskan perbedaan antara polusi dari 'point source' (sumber titik) dan 'non-point source' (sumber tersebar). Berikan masing-masing satu contoh spesifik untuk lingkungan laut.", answer: "Point source adalah sumber polusi yang berasal dari satu lokasi tunggal yang dapat diidentifikasi. Sumber ini cenderung lebih mudah diatur dan dipantau. Contoh: Pipa pembuangan limbah cair dari sebuah pabrik pengolahan ikan yang langsung mengarah ke teluk. Non-point source adalah polusi yang berasal dari sumber yang tersebar dan difus di area yang luas, biasanya terbawa oleh limpasan air. Sumber ini lebih sulit dikelola. Contoh: Limpasan air hujan dari lahan pertanian di sepanjang pesisir yang membawa sisa pupuk (nitrogen dan fosfat) dan pestisida ke muara dan laut." }
+                ]
+            },
+            "Parameter Kualitas Air & Pengukuran": {
+                mcq: [
+                    { question: "Parameter fisika yang mengukur tingkat kejernihan air dengan menggunakan piringan hitam-putih adalah...", options: ["Turbiditas", "Kecerahan (Secchi disk)", "Total Suspended Solids (TSS)", "Warna"], answer: "Kecerahan (Secchi disk)", explanation: "Kedalaman Secchi (Secchi depth) adalah ukuran sederhana untuk kecerahan air, yaitu kedalaman di mana piringan Secchi tidak lagi terlihat dari permukaan." },
+                    { question: "Satuan yang umum digunakan untuk mengukur turbiditas (kekeruhan) adalah...", options: ["mg/L", "PSU", "NTU (Nephelometric Turbidity Units)", "meter"], answer: "NTU (Nephelometric Turbidity Units)", explanation: "NTU adalah satuan standar untuk turbiditas, yang diukur menggunakan nephelometer yang mendeteksi seberapa banyak cahaya yang dihamburkan oleh partikel tersuspensi." },
+                    { question: "Total Suspended Solids (TSS) diukur dengan metode...", options: ["Gravimetri (penyaringan dan penimbangan)", "Titrasi", "Spektrofotometri", "Konduktometri"], answer: "Gravimetri (penyaringan dan penimbangan)", explanation: "Metode standar untuk TSS adalah menyaring volume air tertentu, kemudian mengeringkan dan menimbang residu (padatan) yang tertinggal di kertas saring." },
+                    { question: "Total Dissolved Solids (TDS) sering diestimasi secara cepat di lapangan dengan mengukur...", options: ["Suhu", "pH", "Daya hantar listrik (Electrical Conductivity)", "Oksigen terlarut"], answer: "Daya hantar listrik (Electrical Conductivity)", explanation: "Karena TDS sebagian besar terdiri dari ion-ion garam terlarut yang menghantarkan listrik, maka ada korelasi yang kuat antara konduktivitas listrik (EC) dengan TDS." },
+                    { question: "Instrumen modern yang digunakan untuk mengukur profil vertikal konduktivitas, suhu, dan kedalaman secara bersamaan adalah...", options: ["Secchi Disk", "CTD (Conductivity, Temperature, Depth)", "ADCP", "Echo sounder"], answer: "CTD (Conductivity, Temperature, Depth)", explanation: "CTD adalah instrumen oseanografi standar yang diturunkan ke kolom air untuk mendapatkan data profil vertikal suhu, salinitas (dihitung dari konduktivitas), dan kedalaman (dihitung dari tekanan) dengan resolusi tinggi." },
+                    { question: "Metode klasik yang sangat akurat untuk mengukur oksigen terlarut (DO) di laboratorium adalah...", options: ["Metode Winkler (titrasi)", "Menggunakan DO meter optik", "Menggunakan DO meter polarografik", "Spektrofotometri"], answer: "Metode Winkler (titrasi)", explanation: "Metode titrasi Winkler adalah metode referensi (gold standard) untuk kalibrasi sensor DO karena akurasinya yang sangat tinggi." },
+                    { question: "BOD (Biological Oxygen Demand) adalah ukuran jumlah oksigen yang dibutuhkan oleh...", options: ["Ikan untuk bernapas", "Reaksi kimia untuk mengoksidasi semua bahan organik", "Mikroorganisme untuk menguraikan bahan organik yang dapat terurai secara hayati (biodegradable)", "Fitoplankton selama fotosintesis"], answer: "Mikroorganisme untuk menguraikan bahan organik yang dapat terurai secara hayati (biodegradable)", explanation: "BOD mengindikasikan jumlah polusi organik yang dapat diurai oleh bakteri. Uji standar (BOD₅) mengukur konsumsi oksigen selama 5 hari." },
+                    { question: "Perbedaan utama antara BOD dan COD (Chemical Oxygen Demand) adalah...", options: ["BOD mengukur polutan anorganik, COD mengukur polutan organik", "COD selalu lebih rendah dari BOD", "COD mengukur hampir semua bahan organik (biodegradable & non-biodegradable), sedangkan BOD hanya yang biodegradable", "BOD diukur dalam 2 jam, COD dalam 5 hari"], answer: "COD mengukur hampir semua bahan organik (biodegradable & non-biodegradable), sedangkan BOD hanya yang biodegradable", explanation: "Karena COD menggunakan oksidator kimia kuat, nilainya hampir selalu lebih tinggi daripada BOD untuk sampel air yang sama, karena ia juga mengoksidasi zat-zat yang tidak dapat diurai oleh mikroba." },
+                    { question: "Dalam metode pengukuran COD, oksidator kuat yang umum digunakan adalah...", options: ["Natrium tiosulfat", "Kalium permanganat", "Kalium dikromat", "Asam sulfat"], answer: "Kalium dikromat", explanation: "Kalium dikromat (K₂Cr₂O₇) dalam suasana asam kuat adalah reagen standar yang digunakan untuk mengoksidasi bahan organik dalam uji COD." },
+                    { question: "Salinitas yang diukur berdasarkan daya hantar listrik memiliki satuan...", options: ["ppt (parts per thousand)", "PSU (Practical Salinity Unit)", "% (persen)", "mg/L"], answer: "PSU (Practical Salinity Unit)", explanation: "PSU adalah satuan salinitas modern yang didasarkan pada rasio konduktivitas sampel air laut terhadap larutan standar KCl. Secara numerik, nilai PSU sangat mendekati nilai ppt." },
+                    { question: "pH meter bekerja dengan mengukur...", options: ["Perubahan warna indikator", "Potensial listrik antara elektroda gelas dan elektroda referensi", "Absorbansi cahaya", "Daya hantar listrik"], answer: "Potensial listrik antara elektroda gelas dan elektroda referensi", explanation: "Elektroda gelas pada pH meter sensitif terhadap konsentrasi ion hidrogen (H⁺), yang menghasilkan beda potensial yang dapat dikonversi menjadi nilai pH." },
+                    { question: "Parameter kualitas air seperti suhu, pH, dan oksigen terlarut sebaiknya diukur...", options: ["Setelah satu minggu di laboratorium", "Di laboratorium setelah diawetkan dengan asam", "Langsung di lokasi pengambilan sampel (in-situ)", "Setelah sampel dibekukan"], answer: "Langsung di lokasi pengambilan sampel (in-situ)", explanation: "Parameter-parameter ini sangat mudah berubah setelah sampel diambil dari lingkungannya, sehingga pengukuran yang paling akurat adalah yang dilakukan secara langsung di lapangan." },
+                    { question: "Untuk mengawetkan sampel air yang akan dianalisis untuk logam berat, biasanya ditambahkan...", options: ["NaOH hingga pH > 10", "Pendinginan pada 4°C", "Asam nitrat (HNO₃) hingga pH < 2", "Formalin"], answer: "Asam nitrat (HNO₃) hingga pH < 2", explanation: "Penambahan asam kuat seperti HNO₃ mencegah logam berat mengendap atau menempel pada dinding wadah sampel." },
+                    { question: "Metode MBAS (Methylene Blue Active Substances) digunakan untuk mengukur konsentrasi...", options: ["Nutrien (fosfat)", "Deterjen (surfaktan anionik)", "Logam berat", "Pestisida"], answer: "Deterjen (surfaktan anionik)", explanation: "Metode ini berdasarkan reaksi antara surfaktan anionik dengan pewarna metilen biru, yang membentuk kompleks berwarna biru yang dapat diukur dengan spektrofotometer." },
+                    { question: "Analisis pestisida dan hidrokarbon terhalogenasi lainnya pada konsentrasi sangat rendah di air laut biasanya memerlukan instrumen canggih seperti...", options: ["pH meter", "Kromatografi Gas (GC) atau Kromatografi Cair Kinerja Tinggi (HPLC)", "Turbidimeter", "Secchi disk"], answer: "Kromatografi Gas (GC) atau Kromatografi Cair Kinerja Tinggi (HPLC)", explanation: "Metode kromatografi digunakan untuk memisahkan komponen-komponen kompleks dalam sampel, yang kemudian dideteksi dan diukur pada konsentrasi yang sangat rendah (ppb atau ppt)." },
+                    { question: "Sampel air yang diambil pada satu waktu dan satu lokasi spesifik disebut...", options: ["Sampel komposit (composite sample)", "Sampel sesaat (grab sample)", "Sampel terintegrasi (integrated sample)", "Sampel acak"], answer: "Sampel sesaat (grab sample)", explanation: "Grab sample hanya merepresentasikan kondisi kualitas air pada saat dan lokasi pengambilan sampel tersebut." },
+                    { question: "Sampel campuran dari beberapa waktu pengambilan di lokasi yang sama disebut...", options: ["Sampel sesaat", "Sampel gabungan tempat", "Sampel komposit waktu", "Sampel representatif"], answer: "Sampel komposit waktu", explanation: "Sampel komposit waktu memberikan gambaran rata-rata kualitas air selama periode waktu tertentu, berguna untuk memantau limbah yang fluktuatif." },
+                    { question: "Bakteri yang sering digunakan sebagai indikator pencemaran tinja (feses) di perairan adalah...", options: ["Vibrio cholerae", "Staphylococcus aureus", "Escherichia coli (E. coli)", "Cyanobacteria"], answer: "Escherichia coli (E. coli)", explanation: "E. coli adalah bagian dari kelompok bakteri coliform tinja. Kehadirannya dalam jumlah tinggi menunjukkan kontaminasi tinja dan kemungkinan adanya patogen berbahaya lainnya." },
+                    { question: "Untuk sungai dengan debit antara 5-150 m³/s, SNI merekomendasikan pengambilan sampel pada berapa titik?", options: ["1 titik di tengah", "2 titik (1/3 dan 2/3 lebar sungai)", "3 titik (tepi kanan, tengah, tepi kiri)", "6 titik pada dua kedalaman"], answer: "2 titik (1/3 dan 2/3 lebar sungai)", explanation: "Pengambilan sampel di beberapa titik melintasi lebar sungai bertujuan untuk mendapatkan sampel yang lebih representatif terhadap kondisi keseluruhan badan air." },
+                    { question: "Pengukuran radioaktivitas di air laut, misalnya untuk isotop Cesium-137, menggunakan metode...", options: ["Titrasi", "Spektrometri Gamma", "Gravimetri", "Kromatografi"], answer: "Spektrometri Gamma", explanation: "Spektrometri gamma dapat mengidentifikasi dan mengukur aktivitas radionuklida spesifik yang memancarkan sinar gamma, seperti Cs-137, berdasarkan spektrum energi yang unik." }
+                ],
+                essay: [
+                     { question: "Jelaskan perbedaan antara TSS (Total Suspended Solids) dan TDS (Total Dissolved Solids) serta metode standar untuk mengukur masing-masing parameter tersebut.", answer: "TSS adalah total padatan yang tidak larut dan melayang (tersuspensi) di dalam air, yang menyebabkan kekeruhan. Metode pengukurannya adalah gravimetri: volume air disaring dengan kertas saring berpori 0.45 μm, lalu kertas saring dikeringkan di oven (103-105°C) dan ditimbang untuk mengetahui berat padatan yang tertahan. TDS adalah total zat padat yang terlarut sempurna dalam air (ion, garam, mineral). Metode pengukurannya juga gravimetri: air yang sudah disaring (filtrat dari pengukuran TSS) diuapkan, lalu residu yang tertinggal dikeringkan di oven suhu lebih tinggi (180°C) dan ditimbang." },
+                     { question: "Mengapa nilai COD (Chemical Oxygen Demand) hampir selalu lebih tinggi daripada nilai BOD (Biological Oxygen Demand) untuk sampel air yang sama? Jelaskan kegunaan masing-masing parameter dalam penilaian kualitas air.", answer: "Nilai COD hampir selalu lebih tinggi karena metode pengukurannya menggunakan oksidator kimia kuat (seperti kalium dikromat) yang dapat mengoksidasi hampir semua bahan organik, baik yang mudah terurai secara biologis (biodegradable) maupun yang tidak (non-biodegradable/sulit terurai). Sebaliknya, BOD hanya mengukur jumlah oksigen yang dikonsumsi oleh mikroorganisme untuk menguraikan bahan organik yang biodegradable saja. Kegunaan BOD adalah untuk mengetahui beban pencemar organik yang dapat diurai secara hayati dan dampaknya terhadap kadar oksigen di perairan. Kegunaan COD adalah untuk mengetahui total beban pencemar organik secara keseluruhan, termasuk yang beracun atau sulit diurai, dan sering digunakan untuk memantau efisiensi pengolahan limbah industri." }
+                ]
+            },
+            "Logam Berat": {
+                mcq: [
+                    { question: "Logam berat didefinisikan sebagai elemen logam yang memiliki...", options: ["Densitas relatif tinggi dan beracun pada konsentrasi rendah", "Warna mengkilap dan konduktivitas tinggi", "Titik leleh rendah dan bersifat radioaktif", "Mudah berkarat dan ditemukan melimpah di kerak bumi"], answer: "Densitas relatif tinggi dan beracun pada konsentrasi rendah", explanation: "Istilah 'logam berat' umumnya merujuk pada logam-logam dengan kepadatan tinggi yang dapat menjadi toksik bagi organisme bahkan dalam konsentrasi yang sangat kecil." },
+                    { question: "Bencana lingkungan yang terkenal akibat pencemaran merkuri (Hg) dari limbah industri kimia terjadi di...", options: ["Chernobyl, Ukraina", "Bhopal, India", "Teluk Minamata, Jepang", "Sidoarjo, Indonesia"], answer: "Teluk Minamata, Jepang", explanation: "Pada pertengahan abad ke-20, pembuangan metilmerkuri oleh pabrik Chisso ke Teluk Minamata menyebabkan akumulasi merkuri pada ikan dan kerang, yang kemudian meracuni penduduk lokal yang mengonsumsinya." },
+                    { question: "Bentuk merkuri yang paling beracun dan mudah terakumulasi dalam jaring makanan adalah...", options: ["Merkuri elemental (logam Hg)", "Garam merkuri anorganik (HgCl₂)", "Metilmerkuri (CH₃Hg⁺)", "Cinnabar (HgS)"], answer: "Metilmerkuri (CH₃Hg⁺)", explanation: "Bakteri di lingkungan perairan dapat mengubah merkuri anorganik menjadi metilmerkuri, suatu senyawa organomerkuri yang sangat toksik dan mudah diserap oleh organisme serta mengalami biomagnifikasi." },
+                    { question: "Paparan kadmium (Cd) dalam jangka panjang pada manusia dapat menyebabkan penyakit tulang yang rapuh, yang dikenal sebagai penyakit...", options: ["Minamata", "Alzheimer", "Itai-itai", "Parkinson"], answer: "Itai-itai", explanation: "Penyakit 'Itai-itai' (aduh-aduh) pertama kali didokumentasikan di Jepang akibat pencemaran kadmium dari pertambangan, yang menyebabkan tulang menjadi sangat rapuh dan nyeri." },
+                    { question: "Salah satu sumber utama paparan kadmium (Cd) bagi manusia non-perokok adalah melalui...", options: ["Udara yang dihirup", "Air minum", "Kontak kulit", "Makanan (misalnya kerang, jamur, jeroan)"], answer: "Makanan (misalnya kerang, jamur, jeroan)", explanation: "Kadmium cenderung terakumulasi di beberapa jenis bahan makanan, terutama pada jeroan (ginjal dan hati), kerang-kerangan, dan beberapa jenis jamur." },
+                    { question: "Spesies kromium (Cr) yang dianggap lebih berbahaya dan bersifat karsinogenik adalah...", options: ["Kromium(0) atau logam Cr", "Kromium(III) atau Cr³⁺", "Kromium(VI) atau Cr⁶⁺ (Hexavalent Chromium)", "Semua spesies sama berbahayanya"], answer: "Kromium(VI) atau Cr⁶⁺ (Hexavalent Chromium)", explanation: "Kromium(VI) jauh lebih toksik dan mudah bergerak di lingkungan dibandingkan Kromium(III). Kromium(VI) diklasifikasikan sebagai karsinogen bagi manusia." },
+                    { question: "Meskipun beracun dalam konsentrasi tinggi, kromium dalam bentuk ini merupakan nutrien esensial bagi manusia untuk metabolisme gula.", options: ["Kromium(VI)", "Kromium(III)", "Logam kromium", "Semua bentuk kromium beracun"], answer: "Kromium(III)", explanation: "Kromium(III) adalah elemen jejak (trace element) yang diperlukan oleh tubuh dalam jumlah sangat kecil untuk membantu kerja insulin dan metabolisme glukosa." },
+                    { question: "Sebelum dilarang, sumber utama pencemaran timbal (Pb) di lingkungan perkotaan secara global adalah...", options: ["Industri cat", "Industri baterai", "Aditif pada bensin (gasoline)", "Pipa air minum"], answer: "Aditif pada bensin (gasoline)", explanation: "Penambahan tetraetil timbal pada bensin sebagai peningkat oktan menyebabkan pelepasan timbal dalam jumlah besar ke atmosfer melalui emisi kendaraan, yang kemudian mengendap di tanah dan air." },
+                    { question: "Anak-anak sangat rentan terhadap keracunan timbal (Pb), yang dapat menyebabkan...", options: ["Pertumbuhan tulang yang cepat", "Peningkatan nafsu makan", "Kerusakan otak dan penurunan kemampuan belajar (IQ)", "Peningkatan sistem kekebalan tubuh"], answer: "Kerusakan otak dan penurunan kemampuan belajar (IQ)", explanation: "Timbal adalah neurotoksin yang kuat, dan paparan pada masa kanak-kanak dapat menyebabkan kerusakan permanen pada perkembangan otak dan sistem saraf." },
+                    { question: "Logam berat dapat masuk ke rantai makanan laut dan terkonsentrasi pada predator puncak. Proses ini disebut...", options: ["Biofiltrasi", "Bioremediasi", "Biomagnifikasi", "Biodegradasi"], answer: "Biomagnifikasi", explanation: "Biomagnifikasi adalah peningkatan konsentrasi zat (seperti logam berat) di setiap tingkatan trofik dalam suatu ekosistem." },
+                    { question: "Di lingkungan perairan yang asam (pH rendah), mobilitas dan ketersediaan hayati (bioavailability) banyak logam berat cenderung...", options: ["Menurun", "Meningkat", "Tetap sama", "Menjadi nol"], answer: "Meningkat", explanation: "Kondisi asam dapat meningkatkan kelarutan banyak logam berat yang terikat pada sedimen atau partikel tanah, sehingga membuatnya lebih mudah tersedia untuk diserap oleh organisme." },
+                    { question: "Salah satu sumber alami pelepasan logam berat seperti merkuri ke atmosfer adalah...", options: ["Aktivitas pertanian", "Letusan gunung berapi", "Limbah domestik", "Deforestasi"], answer: "Letusan gunung berapi", explanation: "Gunung berapi dapat melepaskan sejumlah besar merkuri dan logam lainnya yang terperangkap di dalam bumi ke atmosfer." },
+                    { question: "Peralatan masak yang terbuat dari bahan ini berisiko melepaskan logam neurotoksik jika lapisannya tergores.", options: ["Baja tahan karat (Stainless steel)", "Kaca", "Aluminium", "Keramik 100%"], answer: "Aluminium", explanation: "Aluminium adalah logam neurotoksik. Meskipun peralatan masak aluminium biasanya dilapisi, lapisan tersebut dapat terkelupas dan melepaskan aluminium ke dalam makanan." },
+                    { question: "Lapisan anti-lengket pada wajan 'Teflon' yang dapat melepaskan senyawa beracun jika dipanaskan berlebihan mengandung polimer...", options: ["Polietilena (PE)", "Polivinil klorida (PVC)", "Polistirena (PS)", "Polytetrafluoroethylene (PTFE)"], answer: "Polytetrafluoroethylene (PTFE)", explanation: "PTFE adalah polimer yang memberikan sifat anti-lengket. Jika dipanaskan di atas suhu tertentu, ia dapat terurai dan melepaskan asap beracun." },
+                    { question: "Logam berat tidak dapat dihancurkan atau didegradasi, yang berarti mereka bersifat...", options: ["Volatil", "Radioaktif", "Persisten", "Reaktif"], answer: "Persisten", explanation: "Sifat persisten berarti sekali dilepaskan ke lingkungan, logam berat akan tetap ada dan dapat bersiklus di antara udara, air, dan tanah untuk waktu yang sangat lama." }
+                ],
+                essay: [
+                    { question: "Jelaskan proses biomagnifikasi menggunakan contoh merkuri di ekosistem laut. Mengapa predator puncak seperti tuna atau hiu memiliki kadar merkuri yang jauh lebih tinggi daripada plankton?", answer: "Proses dimulai ketika merkuri anorganik di air diubah oleh bakteri menjadi metilmerkuri yang sangat beracun. Metilmerkuri ini diserap oleh fitoplankton (tingkat trofik 1). Kemudian, zooplankton (tingkat trofik 2) memakan banyak fitoplankton, mengumpulkan merkuri dari semua fitoplankton yang dimakannya. Ikan kecil (tingkat trofik 3) memakan banyak zooplankton, dan begitu seterusnya hingga ke predator puncak seperti tuna (tingkat trofik 4 atau 5). Karena merkuri tidak mudah dikeluarkan dari tubuh dan terakumulasi di jaringan (terutama otot), konsentrasinya menjadi semakin pekat di setiap tingkatan rantai makanan. Oleh karena itu, tuna yang telah memakan banyak ikan yang lebih kecil akan memiliki akumulasi merkuri yang jauh lebih tinggi daripada organisme di dasar rantai makanan." },
+                    { question: "Sebutkan setidaknya tiga sumber antropogenik (akibat aktivitas manusia) utama dari pencemaran logam berat di lingkungan laut.", answer: "1. Limbah Industri: Banyak industri seperti pertambangan, peleburan logam, elektroplating, dan produksi baterai melepaskan limbah yang mengandung logam berat seperti timbal, kadmium, dan kromium. 2. Pembakaran Bahan Bakar Fosil: Pembakaran batu bara di pembangkit listrik adalah sumber utama emisi merkuri ke atmosfer, yang kemudian dapat mengendap di lautan. 3. Limpasan Perkotaan dan Pertanian: Limpasan air hujan dari jalanan dapat membawa timbal dan seng dari ban dan rem kendaraan. Beberapa pupuk dan pestisida juga dapat mengandung logam berat seperti kadmium dan arsenik sebagai pengotor." }
+                ]
+            },
+            "Sampah Laut (Marine Debris)": {
+                mcq: [
+                    { question: "Mayoritas sampah laut (sekitar 90%) terdiri dari...", options: ["Logam", "Kaca", "Plastik", "Kertas"], answer: "Plastik", explanation: "Karena sifatnya yang tahan lama, ringan, dan produksinya yang masif, plastik menjadi komponen dominan dari sampah laut di seluruh dunia." },
+                    { question: "Plastik dibuat dari sumber daya alam yang tidak dapat diperbarui, yaitu...", options: ["Kayu", "Pasir silika", "Minyak bumi (petroleum)", "Logam"], answer: "Minyak bumi (petroleum)", explanation: "Sebagian besar plastik adalah polimer sintetik yang berasal dari pemrosesan minyak bumi dan gas alam." },
+                    { question: "Istilah ilmiah untuk plastik adalah 'polimer sintetik'. 'Poli' berarti...", options: ["Satu", "Kuat", "Banyak", "Cahaya"], answer: "Banyak", explanation: "Polimer adalah molekul rantai panjang yang terbentuk dari pengulangan unit-unit kecil yang disebut monomer. 'Poli' berarti banyak, dan 'mer' berarti bagian." },
+                    { question: "Proses di mana plastik pecah menjadi potongan-potongan yang lebih kecil akibat paparan sinar UV matahari disebut...", options: ["Biodegradasi", "Fotodegradasi", "Pelarutan", "Hidrolisis"], answer: "Fotodegradasi", explanation: "Sinar ultraviolet dari matahari menyebabkan rantai polimer plastik menjadi rapuh dan pecah menjadi fragmen-fragmen yang lebih kecil (mikroplastik), tetapi komposisi kimianya tetap plastik." },
+                    { question: "Area di tengah samudra tempat sampah plastik cenderung terakumulasi akibat sirkulasi arus disebut...", options: ["Upwelling zone", "Zona intertidal", "Gyre samudra", "Palung laut"], answer: "Gyre samudra", explanation: "Gyre adalah sistem arus berputar yang besar. Di pusat gyre, air bergerak lambat dan cenderung mengumpulkan puing-puing yang mengapung, termasuk plastik." },
+                    { question: "Salah satu dampak ekologis langsung dari sampah plastik terhadap hewan laut adalah...", options: ["Menjadi sumber makanan baru", "Jeratan (entanglement) dan salah makan (ingestion)", "Meningkatkan kadar oksigen", "Menyediakan habitat baru"], answer: "Jeratan (entanglement) dan salah makan (ingestion)", explanation: "Hewan seperti penyu, anjing laut, dan burung laut dapat terjerat dalam sampah seperti jaring ikan atau cincin plastik. Banyak juga yang mati karena memakan plastik yang mereka kira makanan." },
+                    { question: "Partikel plastik yang berukuran kurang dari 5 mm disebut...", options: ["Makroplastik", "Megaplastik", "Mikroplastik", "Nanoplastik"], answer: "Mikroplastik", explanation: "Mikroplastik dapat berasal dari pemecahan plastik yang lebih besar (sekunder) atau diproduksi secara sengaja dalam ukuran kecil seperti microbeads (primer)." },
+                    { question: "Bahan kimia beracun yang persisten di lingkungan laut, seperti PCB dan DDT, dapat menempel pada permukaan partikel plastik. Sifat plastik yang menyebabkan ini adalah...", options: ["Hidrofilik (suka air)", "Hidrofobik (menolak air)", "Biodegradable", "Transparan"], answer: "Hidrofobik (menolak air)", explanation: "Plastik dan polutan organik persisten (POPs) sama-sama bersifat hidrofobik. Akibatnya, POPs yang terlarut dalam air cenderung menempel dan terkonsentrasi pada permukaan plastik." },
+                    { question: "Bahan tambahan kimia dalam plastik yang dapat terlepas dan berpotensi mengganggu sistem hormon pada hewan disebut...", options: ["Pewarna", "Pengganggu endokrin (endocrine disruptors) seperti BPA dan ftalat", "Stabilisator UV", "Pengisi"], answer: "Pengganggu endokrin (endocrine disruptors) seperti BPA dan ftalat", explanation: "Banyak bahan kimia yang ditambahkan ke plastik untuk memberikan sifat tertentu (misalnya, kelenturan) dapat bertindak sebagai pengganggu endokrin, yang meniru atau menghalangi kerja hormon alami." },
+                    { question: "Strategi paling efektif dalam hierarki pengelolaan sampah untuk mengurangi polusi plastik adalah...", options: ["Mendaur ulang (Recycle)", "Menggunakan kembali (Reuse)", "Menolak (Refuse) dan Mengurangi (Reduce)", "Membuang ke tempat sampah"], answer: "Menolak (Refuse) dan Mengurangi (Reduce)", explanation: "Mencegah sampah plastik terbentuk sejak awal dengan menolak barang sekali pakai dan mengurangi konsumsi adalah langkah yang paling efektif dan berada di puncak hierarki '4R'." },
+                    { question: "Alat yang digunakan oleh para peneliti untuk mengambil sampel mikroplastik yang mengapung di permukaan laut adalah...", options: ["Jaring trawl ikan", "Manta trawl", "CTD Rosette", "Grab sampler"], answer: "Manta trawl", explanation: "Manta trawl adalah jaring dengan bingkai yang memiliki 'sayap' sehingga dapat meluncur di permukaan laut untuk mengumpulkan sampel dari lapisan permukaan." },
+                    { question: "Burung Albatros di Pulau Midway sering ditemukan mati dengan perut penuh plastik karena...", options: ["Mereka sengaja memakan plastik", "Induknya salah mengira plastik sebagai makanan dan memberikannya pada anak-anaknya", "Plastik menempel di bulu mereka", "Air minum mereka terkontaminasi plastik"], answer: "Induknya salah mengira plastik sebagai makanan dan memberikannya pada anak-anaknya", explanation: "Albatros mencari makan di permukaan laut terbuka dan sering kali salah mengira potongan plastik berwarna-warni sebagai mangsa alami seperti cumi-cumi atau telur ikan." },
+                    { question: "Proses di mana senyawa dipecah menjadi senyawa alami yang lebih sederhana oleh agen biologis seperti bakteri disebut...", options: ["Fotodegradasi", "Biodegradasi", "Oksidasi", "Polimerisasi"], answer: "Biodegradasi", explanation: "Sebagian besar plastik konvensional tidak dapat mengalami biodegradasi secara efisien di lingkungan laut, itulah sebabnya mereka bertahan untuk waktu yang sangat lama." },
+                    { question: "Jenis plastik yang dapat dibentuk ulang saat dipanaskan, seperti botol PET, disebut...", options: ["Thermoset", "Termoplastik", "Elastomer", "Resin"], answer: "Termoplastik", explanation: "Termoplastik dapat dilelehkan dan dibentuk kembali berulang kali, yang memungkinkan mereka untuk didaur ulang (meskipun sering kali menjadi produk berkualitas lebih rendah atau 'down-cycled')." },
+                    { question: "Istilah 'nurdles' atau 'resin pellet' merujuk pada...", options: ["Potongan kecil sampah plastik yang sudah terfragmentasi", "Bahan baku plastik mentah berbentuk butiran kecil sebelum diolah menjadi produk akhir", "Jenis plankton yang memakan plastik", "Alat untuk membersihkan tumpahan minyak"], answer: "Bahan baku plastik mentah berbentuk butiran kecil sebelum diolah menjadi produk akhir", explanation: "Nurdles adalah bahan baku industri plastik. Tumpahan selama transportasi adalah sumber utama polusi mikroplastik primer di lautan." }
+                ],
+                essay: [
+                     { question: "Jelaskan dua cara utama bagaimana sampah plastik dapat membahayakan kehidupan laut. Berikan contoh spesifik untuk masing-masing cara.", answer: "Dua cara utama adalah: 1. Jeratan (Entanglement): Hewan dapat terjerat dalam sampah plastik yang lebih besar, yang dapat menyebabkan luka, kelaparan, tenggelam, atau membuat mereka lebih rentan terhadap predator. Contoh: Anjing laut terjerat dalam jaring ikan yang hilang (ghost net) atau penyu terjerat dalam cincin plastik six-pack. 2. Salah Makan (Ingestion): Hewan salah mengira plastik sebagai makanan. Hal ini dapat menyebabkan penyumbatan saluran pencernaan, kelaparan (karena perut terasa penuh tanpa nutrisi), atau keracunan dari bahan kimia dalam plastik. Contoh: Burung laut Albatros yang perutnya penuh dengan tutup botol dan korek api, atau penyu yang memakan kantong plastik karena mengiranya sebagai ubur-ubur." },
+                     { question: "Apa yang dimaksud dengan mikroplastik primer dan mikroplastik sekunder? Berikan contoh untuk masing-masing.", answer: "Mikroplastik primer adalah partikel plastik yang sengaja diproduksi dalam ukuran kecil (kurang dari 5 mm). Contohnya termasuk microbeads yang digunakan dalam produk kosmetik (seperti scrub wajah) dan 'nurdles' atau pelet resin plastik yang merupakan bahan baku industri plastik. Mikroplastik sekunder adalah partikel plastik yang berasal dari pemecahan atau fragmentasi benda plastik yang lebih besar akibat proses fisik, kimia, atau biologis di lingkungan. Contohnya adalah serat mikro yang terlepas dari pakaian sintetis saat dicuci, atau serpihan kecil yang berasal dari botol plastik atau kantong plastik yang telah rapuh akibat sinar matahari (fotodegradasi)." }
+                ]
+            }
+        };
+
+        // --- Logika Kuis ---
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const topicSelection = document.getElementById('topic-selection');
+        const quizTopicTitle = document.getElementById('quiz-topic-title');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const essayContainer = document.getElementById('essay-container');
+        const essayAnswer = document.getElementById('essay-answer');
+        const questionCounter = document.getElementById('question-counter');
+        const scoreElement = document.getElementById('score');
+        const topicScoresBreakdown = document.getElementById('topic-scores-breakdown');
+        const answersReview = document.getElementById('answers-review');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const modal = document.getElementById('explanationModal');
+        const navPanel = document.getElementById('nav-panel');
+        const navGrid = document.getElementById('nav-grid');
+        const progressBar = document.getElementById('progress-bar');
+
+        let currentQuestionIndex = 0;
+        let userAnswers = [];
+        let activeQuestions = [];
+        let selectedOptionElement = null;
+        let currentTopic = '';
+
+        function initializeTopicSelection() {
+            topicSelection.innerHTML = '';
+            const topics = Object.keys(quizDataCategorized);
+            topics.forEach(topic => {
+                const button = document.createElement('button');
+                button.textContent = topic;
+                button.classList.add('topic-button', 'w-full', 'p-4', 'bg-white', 'border-2', 'border-blue-300', 'rounded-lg', 'text-blue-700', 'font-semibold', 'hover:bg-blue-50');
+                button.onclick = () => startQuiz(topic);
+                topicSelection.appendChild(button);
+            });
+            const allButton = document.createElement('button');
+            allButton.textContent = 'Semua Topik (110 Soal)';
+            allButton.classList.add('topic-button', 'w-full', 'p-4', 'bg-blue-600', 'text-white', 'font-bold', 'rounded-lg', 'md:col-span-2');
+            allButton.onclick = () => startQuiz('Semua Topik');
+            topicSelection.appendChild(allButton);
+        }
+
+        function startQuiz(topic) {
+            currentTopic = topic;
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            resultScreen.classList.add('hidden');
+            
+            if (topic === 'Semua Topik') {
+                activeQuestions = [];
+                Object.keys(quizDataCategorized).forEach(catName => {
+                    const category = quizDataCategorized[catName];
+                    activeQuestions.push(...category.mcq.map(q => ({...q, topic: catName})));
+                    activeQuestions.push(...category.essay.map(q => ({...q, topic: catName})));
+                });
+            } else {
+                const category = quizDataCategorized[topic];
+                activeQuestions = [
+                    ...category.mcq.map(q => ({...q, topic})),
+                    ...category.essay.map(q => ({...q, topic}))
+                ];
+            }
+            
+            activeQuestions = shuffleArray(activeQuestions);
+
+            quizTopicTitle.textContent = topic;
+            currentQuestionIndex = 0;
+            userAnswers = Array(activeQuestions.length).fill(null).map((_, i) => ({
+                question: activeQuestions[i].question,
+                userAnswer: null,
+                correctAnswer: activeQuestions[i].answer,
+                isCorrect: null,
+                explanation: activeQuestions[i].explanation,
+                type: activeQuestions[i].options ? 'mcq' : 'essay',
+                topic: activeQuestions[i].topic
+            }));
+            
+            populateNavPanel();
+            loadQuiz();
+        }
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function populateNavPanel() {
+            navGrid.innerHTML = '';
+            activeQuestions.forEach((_, index) => {
+                const btn = document.createElement('button');
+                btn.innerHTML = `<span>${index + 1}</span>`;
+                btn.classList.add('nav-btn', 'p-2', 'rounded-md', 'transition-colors', 'duration-200', 'flex', 'items-center', 'justify-center');
+                btn.onclick = () => jumpToQuestion(index);
+                navGrid.appendChild(btn);
+            });
+        }
+
+        function updateNavPanel() {
+            const navButtons = navGrid.children;
+            const checkmarkSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" class="bi bi-check-lg inline-block ml-1" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/></svg>`;
+
+            for (let i = 0; i < navButtons.length; i++) {
+                navButtons[i].classList.remove('current', 'answered');
+                navButtons[i].innerHTML = `<span>${i + 1}</span>`; 
+
+                if (userAnswers[i] && userAnswers[i].userAnswer !== null && userAnswers[i].userAnswer.trim() !== '') {
+                    navButtons[i].classList.add('answered');
+                    navButtons[i].innerHTML = `<span>${i + 1}</span>${checkmarkSVG}`;
+                }
+                if (i === currentQuestionIndex) {
+                    navButtons[i].classList.add('current');
+                }
+            }
+        }
+
+        function toggleNavPanel() {
+            navPanel.classList.toggle('hidden');
+            if (!navPanel.classList.contains('hidden')) {
+                updateNavPanel();
+            }
+        }
+
+        function jumpToQuestion(index) {
+            saveCurrentAnswer();
+            currentQuestionIndex = index;
+            loadQuiz();
+            toggleNavPanel();
+        }
+
+        function saveCurrentAnswer() {
+            const currentQuestion = activeQuestions[currentQuestionIndex];
+            let userAnswer = null;
+
+            if (currentQuestion.options) {
+                const selected = optionsContainer.querySelector('.selected');
+                if (selected) userAnswer = selected.textContent;
+            } else {
+                if (essayAnswer.value.trim() !== '') userAnswer = essayAnswer.value.trim();
+            }
+
+            userAnswers[currentQuestionIndex].userAnswer = userAnswer;
+            if (currentQuestion.options) {
+                userAnswers[currentQuestionIndex].isCorrect = (userAnswer === currentQuestion.answer);
+            }
+        }
+
+        function loadQuiz() {
+            deselectOptions();
+            const currentQuestionData = userAnswers[currentQuestionIndex];
+            questionText.textContent = currentQuestionData.question;
+            questionCounter.textContent = `Soal ${currentQuestionIndex + 1} / ${activeQuestions.length}`;
+            progressBar.style.width = `${((currentQuestionIndex + 1) / activeQuestions.length) * 100}%`;
+
+            if (currentQuestionData.type === 'mcq') {
+                optionsContainer.classList.remove('hidden');
+                essayContainer.classList.add('hidden');
+                optionsContainer.innerHTML = '';
+                const options = shuffleArray([...activeQuestions[currentQuestionIndex].options]);
+                options.forEach(option => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    button.classList.add('quiz-option', 'w-full', 'p-4', 'border-2', 'rounded-lg', 'text-left', 'hover:bg-blue-100', 'transition', 'duration-200');
+                    button.onclick = () => selectAnswer(button);
+                    if (option === currentQuestionData.userAnswer) {
+                        button.classList.add('selected');
+                        selectedOptionElement = button;
+                    }
+                    optionsContainer.appendChild(button);
+                });
+            } else {
+                optionsContainer.classList.add('hidden');
+                essayContainer.classList.remove('hidden');
+                essayAnswer.value = currentQuestionData.userAnswer || '';
+            }
+            
+            prevBtn.style.visibility = currentQuestionIndex === 0 ? 'hidden' : 'visible';
+            nextBtn.textContent = currentQuestionIndex === activeQuestions.length - 1 ? 'Selesai' : 'Selanjutnya';
+        }
+
+        function selectAnswer(buttonElement) {
+            deselectOptions();
+            selectedOptionElement = buttonElement;
+            buttonElement.classList.add('selected');
+        }
+
+        function deselectOptions() {
+            const options = document.querySelectorAll('.quiz-option');
+            options.forEach(option => option.classList.remove('selected'));
+            selectedOptionElement = null;
+        }
+        
+        function prevQuestion() {
+            if (currentQuestionIndex > 0) {
+                saveCurrentAnswer();
+                currentQuestionIndex--;
+                loadQuiz();
+            }
+        }
+
+        function nextQuestion() {
+            saveCurrentAnswer();
+            if (currentQuestionIndex < activeQuestions.length - 1) {
+                currentQuestionIndex++;
+                loadQuiz();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            saveCurrentAnswer();
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+
+            const topicScores = {};
+            userAnswers.forEach(answer => {
+                if (answer.type !== 'mcq') return;
+                if (!topicScores[answer.topic]) {
+                    topicScores[answer.topic] = { correct: 0, total: 0 };
+                }
+                topicScores[answer.topic].total++;
+                if (answer.isCorrect) {
+                    topicScores[answer.topic].correct++;
+                }
+            });
+
+            topicScoresBreakdown.innerHTML = '<h3 class="text-xl font-bold mb-4">Rincian Skor per Topik (Pilihan Ganda)</h3>';
+            let totalCorrect = 0;
+            let totalQuestions = 0;
+
+            const sortedTopics = Object.keys(quizDataCategorized).sort();
+
+            sortedTopics.forEach(topic => {
+                if (topicScores[topic] && topicScores[topic].total > 0) {
+                    const score = topicScores[topic];
+                    totalCorrect += score.correct;
+                    totalQuestions += score.total;
+                    const percentage = score.total > 0 ? ((score.correct / score.total) * 100).toFixed(0) : 0;
+                    topicScoresBreakdown.innerHTML += `
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-semibold">${topic}</span>
+                            <span class="font-bold">${score.correct}/${score.total} (${percentage}%)</span>
+                        </div>
+                    `;
+                }
+            });
+
+            if (totalQuestions > 0) {
+                const totalPercentage = ((totalCorrect / totalQuestions) * 100).toFixed(0);
+                topicScoresBreakdown.innerHTML += `<hr class="my-2"><div class="flex justify-between items-center mt-2">
+                    <span class="font-bold text-lg text-blue-600">Skor Total</span>
+                    <span class="font-bold text-lg text-blue-600">${totalCorrect}/${totalQuestions} (${totalPercentage}%)</span>
+                </div>`;
+            } else {
+                 topicScoresBreakdown.innerHTML += `<p>Tidak ada soal pilihan ganda yang dikerjakan.</p>`;
+            }
+
+
+            answersReview.innerHTML = '';
+            userAnswers.forEach((answer, index) => {
+                const reviewItem = document.createElement('div');
+                reviewItem.classList.add('p-4', 'mb-4', 'border', 'rounded-lg');
+                
+                let answerStatusHtml = '';
+                if (answer.type === 'mcq') {
+                    if (answer.isCorrect) {
+                        reviewItem.classList.add('bg-green-50', 'border-green-200');
+                        answerStatusHtml = `<p class="mt-2"><strong>Jawaban Anda:</strong> <span class="text-green-700 font-semibold">${answer.userAnswer || '(Tidak dijawab)'} (Benar)</span></p>`;
+                    } else {
+                        reviewItem.classList.add('bg-red-50', 'border-red-200');
+                        answerStatusHtml = `
+                            <p class="mt-2"><strong>Jawaban Anda:</strong> <span class="text-red-700 font-semibold">${answer.userAnswer || '(Tidak dijawab)'} (Salah)</span></p>
+                            <p class="mt-1"><strong>Jawaban Benar:</strong> <span class="text-green-700 font-semibold">${answer.correctAnswer}</span></p>
+                        `;
+                    }
+                } else { // Essay
+                     reviewItem.classList.add('bg-blue-50', 'border-blue-200');
+                     answerStatusHtml = `
+                        <p class="mt-2"><strong>Jawaban Anda (Esai):</strong></p>
+                        <p class="italic text-gray-700 p-2 bg-white rounded">${answer.userAnswer || '(Tidak dijawab)'}</p>
+                        <p class="mt-2"><strong>Kunci Jawaban:</strong></p>
+                        <p class="text-gray-800 p-2 bg-gray-100 rounded">${answer.correctAnswer}</p>
+                     `;
+                }
+
+                reviewItem.innerHTML = `
+                    <p class="font-semibold">${index + 1}. ${answer.question}</p>
+                    <p class="text-xs text-gray-500">Topik: ${answer.topic}</p>
+                    ${answerStatusHtml}
+                    ${answer.type === 'mcq' ? `<button onclick="showExplanation(${index})" class="mt-2 text-sm text-blue-600 hover:underline">Lihat Penjelasan</button>` : ''}
+                `;
+                answersReview.appendChild(reviewItem);
+            });
+        }
+        
+        function restartQuiz() {
+            resultScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+        }
+
+        function showExplanation(index) {
+            const answer = userAnswers[index];
+            document.getElementById('modal-question').textContent = answer.question;
+            document.getElementById('modal-correct-answer').textContent = answer.correctAnswer;
+            document.getElementById('modal-explanation').textContent = answer.explanation || "Penjelasan tidak tersedia.";
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.querySelector('div').classList.remove('scale-95'), 10);
+        }
+
+        function closeModal() {
+            modal.querySelector('div').classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // Initialize
+        window.onload = initializeTopicSelection;
+
+    </script>
+</body>
+</html>
+
